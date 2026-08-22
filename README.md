@@ -1,29 +1,30 @@
 # Personal AI Agent
 
-Un agente personal modular, determinista y confiable, diseñado con estándares de ingeniería de producción.
+Building a Personal AI Agent :)
 
-## Estructura del Proyecto
 
-*   `agent/`: Bucle de control ReAct principal e instrucciones del sistema.
-*   `skills/`: Módulos de habilidades del agente con schemas estrictos de entrada/salida (Pydantic).
-*   `evals/`: Suite automatizada de pruebas para medir exactitud y rendimiento.
-*   `ui/`: Interfaz para interactuar y monitorear el agente.
+## Structure
 
-## Setup Inicial
+*   `agent/`: ReAct loop control with system instructions.
+*   `skills/`: Agent modules with strict input/output schemas (Pydantic).
+*   `evals/`: Automated test suite to measure accuracy and performance.
+*   `ui/`: Interface to interact with and monitor the agent.
 
-1.  Crea un entorno virtual e instala las dependencias:
+## Installation
+
+1.  Create a virtual environment and install the dependencies:
     ```bash
     python3 -m venv venv
     source venv/bin/activate
     pip install -r requirements.txt
     ```
 
-2.  Crea un archivo `.env` en la raíz del proyecto y agrega tu API Key de Google AI Studio:
+2.  Create a `.env` file in the root directory and add your API key:
     ```env
-    GEMINI_API_KEY=tu_api_key_aqui
+    GEMINI_API_KEY=your_api_key_here
     ```
 
-3.  Ejecuta el prototipo básico del agente en consola:
+3.  Run the basic agent prototype in the console:
     ```bash
     python main.py
     ```

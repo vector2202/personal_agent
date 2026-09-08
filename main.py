@@ -2,7 +2,6 @@ import os
 import sys
 from dotenv import load_dotenv
 from agent.core import AgentCore
-from skills.calculator import CalculatorSkill
 from skills.expense_tracker import ExpenseTrackerSkill
 
 # Load environment variables
@@ -19,7 +18,6 @@ def main():
     agent = AgentCore(api_key=api_key)
 
     # 2. Register Skills
-    agent.register_skill(CalculatorSkill())
     agent.register_skill(ExpenseTrackerSkill())
     print("\n=======================================================")
     print("         Personal AI Agent (ReAct CLI Prototype)        ")

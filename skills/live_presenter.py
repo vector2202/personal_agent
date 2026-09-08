@@ -1,6 +1,8 @@
 import time
+import os
+import json
 from enum import Enum
-from typing import Type, Dict, Any, List
+from typing import Type, Dict, Any, List, Generator
 from pydantic import BaseModel, Field
 from skills.base import BaseSkill
 
@@ -9,6 +11,7 @@ class EventType(str, Enum):
     SKILL_START = "SKILL_START"
     SKILL_END = "SKILL_END"
     EVAL_SCORE = "EVAL_SCORE"
+    EXPENSE_LOGGED = "EXPENSE_LOGGED"
     SYSTEM_ALERT = "SYSTEM_ALERT"
 
 class LivePresenterInput(BaseModel):
@@ -18,10 +21,14 @@ class LivePresenterInput(BaseModel):
 class LiveSystemPresenter(BaseSkill):
     """
     UI Bridge Skill. Emits structured telemetry events to connected dashboards (SSE / WebSocket).
-    Maintains an in-memory event buffer for real-time observability.
+    Maintains an in-memory event buffer and persists events to logs/events.jsonl for replay.
     """
 
     _event_buffer: List[Dict[str, Any]] = []
+    LOG_FILE = "logs/events.jsonl"
+
+    def __init__(self):
+        os.makedirs("logs", exist_ok=True)
 
     @property
     def name(self) -> str:
@@ -40,16 +47,23 @@ class LiveSystemPresenter(BaseSkill):
         
         event = {
             "timestamp": time.time(),
+            "iso_time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "event_type": data.event_type.value,
             "payload": data.payload
         }
         
-        # Append to buffer (capped at last 100 events)
+        # Append to live buffer (capped at last 200 events)
         LiveSystemPresenter._event_buffer.append(event)
-        if len(LiveSystemPresenter._event_buffer) > 100:
+        if len(LiveSystemPresenter._event_buffer) > 200:
             LiveSystemPresenter._event_buffer.pop(0)
 
-        # In production this also triggers an SSE/WebSocket broadcast
+        # Append to persistent JSONL log
+        try:
+            with open(self.LOG_FILE, "a", encoding="utf-8") as f:
+                f.write(json.dumps(event) + "\n")
+        except Exception:
+            pass
+
         return {
             "success": True,
             "status": "EMITTED",
@@ -57,6 +71,11 @@ class LiveSystemPresenter(BaseSkill):
         }
 
     @classmethod
-    def get_latest_events(cls, count: int = 10) -> List[Dict[str, Any]]:
-        """Utility method to inspect the live event buffer from API endpoints."""
+    def get_latest_events(cls, count: int = 20) -> List[Dict[str, Any]]:
+        """Returns the latest events in chronological order."""
         return cls._event_buffer[-count:]
+
+    @classmethod
+    def format_sse(cls, event: Dict[str, Any]) -> str:
+        """Helper to format an event as a Server-Sent Events (SSE) data string."""
+        return f"event: {event.get('event_type')}\ndata: {json.dumps(event)}\n\n"

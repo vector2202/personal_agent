@@ -49,15 +49,14 @@ class ExpenseTrackerSkill(BaseSkill):
 
     def __init__(self, db_path: str = "expenses.db"):
         self.db_path = db_path
-        self._init_db()
+        self._schema_ready = False
 
     def _get_connection(self):
-        return sqlite3.connect(self.db_path)
-
-    def _init_db(self):
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
+        # Schema is created on first use, not on construction — building the
+        # skill registry must not touch the filesystem.
+        conn = sqlite3.connect(self.db_path)
+        if not self._schema_ready:
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS expenses (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     date TEXT NOT NULL,
@@ -69,6 +68,8 @@ class ExpenseTrackerSkill(BaseSkill):
                 )
             """)
             conn.commit()
+            self._schema_ready = True
+        return conn
 
     @property
     def name(self) -> str:

@@ -1,39 +1,41 @@
 import json
-from typing import List, Dict, Any
+from typing import Any, Dict
 from google import genai
 from google.genai import types
-from skills.base import BaseSkill
+
+from agent.dispatcher import Dispatcher
+from agent.registry import SkillRegistry
 
 class AgentCore:
-    def __init__(self, api_key: str, model_name: str = "gemini-2.5-flash"):
+    def __init__(
+        self,
+        api_key: str,
+        registry: SkillRegistry,
+        dispatcher: Dispatcher,
+        model_name: str = "gemini-3.8-flash",
+    ):
         """
-        Initializes the agent core with the new google-genai Client and registers available skills.
+        Initializes the agent core. Skills are supplied by the registry; every
+        tool call goes through the dispatcher, never straight to a skill.
         """
         # Initialize the modern Client
         self.client = genai.Client(api_key=api_key)
         self.model_name = model_name
-        self.skills: Dict[str, BaseSkill] = {}
-        
-    def register_skill(self, skill: BaseSkill):
-        """Registers a skill in the agent's toolbox."""
-        self.skills[skill.name] = skill
-        print(f"[Core] Successfully registered skill: '{skill.name}'")
+        self.registry = registry
+        self.dispatcher = dispatcher
 
     def _build_system_instruction(self) -> str:
         """
         Constructs the system instructions, explaining the ReAct loop
         and dynamically listing the available tools and their JSON schemas.
+
+        Every skill's full detail is sent on every call — the same shape as
+        before the registry existed. Progressive disclosure replaces this once
+        there is an eval baseline to compare against.
         """
-        tools_desc = []
-        for name, skill in self.skills.items():
-            schema_json = skill.input_schema.model_json_schema()
-            tools_desc.append(
-                f"- Tool: `{name}`\n"
-                f"  Description: {skill.description}\n"
-                f"  Input Schema (JSON): {json.dumps(schema_json)}"
-            )
-            
-        skills_formatted = "\n\n".join(tools_desc)
+        skills_formatted = "\n\n".join(
+            self.registry.detail(name) for name in self.registry.names()
+        )
         
         instruction = (
             "You are an autonomous personal intelligent assistant. Your goal is to solve user requests "
@@ -111,17 +113,14 @@ class AgentCore:
                 
             # If the model calls a tool
             if action:
-                if action not in self.skills:
-                    observation = f"Error: Tool '{action}' is not registered."
-                else:
-                    skill = self.skills[action]
-                    print(f"[Action] Invoking tool '{action}' with parameters: {action_input}")
-                    
-                    # 2. Execute the local tool
-                    result = skill.execute(action_input)
-                    observation = json.dumps(result)
-                    
-                print(f"[Observation]: {observation}")
+                print(f"[Action] Invoking tool '{action}' with parameters: {action_input}")
+
+                # 2. Execute through the dispatcher: validation, approval gate,
+                #    timeout and truncation all happen in there. It never raises.
+                result = self.dispatcher.dispatch(action, action_input)
+                observation = result.observation
+
+                print(f"[Observation] ({result.outcome.value}, {result.duration_ms}ms): {observation}")
                 
                 # Feed observation back as a user response to continue the conversation context
                 history.append(types.Content(

@@ -29,8 +29,9 @@ class GraphRAGMemoryIndexer(BaseSkill):
     """
 
     def __init__(self, storage_path: str = "memory_graph.json"):
+        # Storage is created on first use by _load_graph, not here — building
+        # the skill registry must not touch the filesystem.
         self.storage_path = storage_path
-        self._ensure_storage()
 
     def _ensure_storage(self):
         if not os.path.exists(self.storage_path):

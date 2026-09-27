@@ -19,6 +19,8 @@ LOG_PATH = os.path.join(ROOT, "logs", "events.jsonl")
 # current working directory.
 SKILL_CONFIG = {
     "expense_tracker": {"db_path": os.path.join(ROOT, "expenses.db")},
+    "graph_rag_memory_indexer": {"storage_path": os.path.join(ROOT, "memory_graph.json")},
+    "file_access": {"workspace_root": ROOT},
 }
 
 
